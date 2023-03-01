@@ -3,8 +3,10 @@ package com.gorani.jetpack_workmanager_1
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
+import androidx.work.Data
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import androidx.work.workDataOf
 
 /**
  * WorkManager
@@ -31,28 +33,55 @@ import androidx.work.WorkManager
  * https://developer.android.com/topic/libraries/architecture/workmanager/how-to/define-work?hl=ko#work-constraints
  *
  */
-
+/**
+ * WorkManager 데이터 주고받기 (Sending Data / Receiver Data)
+ * => MainActivity <--Data--> WorkManagerA
+ */
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        SimpleThread().start()
+//        SimpleThread().start()
 
-        // WorkManagerA 실행
-        val workManagerA = OneTimeWorkRequestBuilder<WorkManagerA>().build()
-        WorkManager.getInstance(this).enqueue(workManagerA)
+//        // WorkManagerA 실행
+//        val workManagerA = OneTimeWorkRequestBuilder<WorkManagerA>().build()
+//        WorkManager.getInstance(this).enqueue(workManagerA)
+
+        // 데이터 보내기 : WorkManager 에서의 Data 는 key/value 형태(pairs) => key to value
+        val myData: Data = workDataOf(
+            "a" to 10,
+            "b" to 20
+        )
+
+        // WorkManagerB 실행 => MainActivity 에서 Data 를 WorkManagerB 에 넘길때 setInputData() 를 사용하여 넘긴다.
+        val workManagerB = OneTimeWorkRequestBuilder<WorkManagerB>().setInputData(myData).build()
+        WorkManager.getInstance(this).enqueue(workManagerB)
+
+        // WorkManagerB 로 부터 반환된 값(output) 을 이곳(MainActivity)에 받기
+        WorkManager.getInstance(this)
+            .getWorkInfoByIdLiveData(workManagerB.id)
+            .observe(this) { info ->
+                if (info != null && info.state.isFinished) {
+                    val result = info.outputData.getInt("result", 10000)
+                    val result2 = info.outputData.getInt("result2", 22222)
+                    Log.d("Activity_Log!!_result", "$result")
+                    Log.d("Activity_Log!!_result2", "$result2") // Default 값 실행
+
+                }
+
+            }
 
     }
 }
 
-class SimpleThread : Thread() {
-    override fun run() {
-        super.run()
-
-        for (i in 1..10) {
-            Log.d("MainActivity_Log!!", "$i")
-            sleep(1000) // sleep() : 지정된 시간만큼 시스템을 멈추게 한다.
-        }
-    }
-}
+//class SimpleThread : Thread() {
+//    override fun run() {
+//        super.run()
+//
+//        for (i in 1..10) {
+//            Log.d("MainActivity_Log!!", "$i")
+//            sleep(1000) // sleep() : 지정된 시간만큼 시스템을 멈추게 한다.
+//        }
+//    }
+//}
